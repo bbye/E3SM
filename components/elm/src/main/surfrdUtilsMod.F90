@@ -121,7 +121,7 @@ contains
     !        Convert generic crop types that were read in as seperate CFT's on
     !        a crop landunit, and put them on the vegetated landunit.
     ! !USES:
-    use elm_varsur      , only : wt_lunit, wt_nat_patch, fert_cft
+    use elm_varsur      , only : wt_lunit, wt_nat_patch, fert_cft, fert_p_cft
     use elm_varpar      , only : cft_size, surfpft_size
     use pftvarcon       , only : nc3crop
     use landunit_varcon , only : istsoil, istcrop
@@ -247,7 +247,7 @@ contains
  end subroutine convert_pft_to_cft
 
  !-----------------------------------------------------------------------
-  subroutine collapse_crop_types(wt_cft, fert_cft, begg, endg, verbose)
+  subroutine collapse_crop_types(wt_cft, fert_cft, fert_p_cft, begg, endg, verbose)
     !
     ! !DESCRIPTION:
     ! Collapse unused crop types into types used in this run.
@@ -272,6 +272,7 @@ contains
     ! This array is modified in-place
     real(r8), intent(inout) :: wt_cft(begg:,1:, cft_lb:)  !TKT
     real(r8), intent(inout) :: fert_cft(begg:,1:, cft_lb:)  !TKT
+    real(r8), intent(inout) :: fert_p_cft(begg:, 1:, cft_lb:)
 
     logical, intent(in) :: verbose  ! If true, print some extra information
     !
@@ -347,6 +348,8 @@ contains
                 if (wt_cft_merge > 0._r8) then
                    fert_cft(g,t2,mergetoelmpft(m)) = (wt_cft_to * fert_cft(g,t2,mergetoelmpft(m)) + &
                                                    wt_cft_from * fert_cft(g,t2,m)) / wt_cft_merge
+                   fert_p_cft(g,t2,mergetoelmpft(m)) = (wt_cft_to * fert_p_cft(g,t2,mergetoelmpft(m)) + &
+                                                   wt_cft_from * fert_p_cft(g,t2,m)) / wt_cft_merge
                 end if
              end if
           end do

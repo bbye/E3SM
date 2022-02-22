@@ -79,7 +79,7 @@ module VegetationPropertiesType
      real(r8), pointer :: fm_root       (:) => null()  ! fire-related mortality factor for fine roots (0 to 1)
      real(r8), pointer :: fm_lroot      (:) => null()  ! fire-related mortality factor for live roots (0 to 1)
      real(r8), pointer :: fm_droot      (:) => null()  ! fire-related mortality factor for dead roots (0 to 1)
-     real(r8), pointer :: fertnitro     (:) => null()  ! fertilizer applied (crop)
+     real(r8), pointer :: manunitro     (:) => null()  ! fertilizer applied (crop)
      real(r8), pointer :: fleafcn       (:) => null()  ! C:N during grain fill; leaf (crop)
      real(r8), pointer :: ffrootcn      (:) => null()  ! C:N during grain fill; froot (crop)
      real(r8), pointer :: fstemcn       (:) => null()  ! C:N during grain fill; stem (crop)
@@ -166,7 +166,7 @@ contains
     use pftvarcon , only : lflitcn, frootcn, livewdcn, deadwdcn, froot_leaf, stem_leaf, croot_stem
     use pftvarcon , only : flivewd, fcur, lf_flab, lf_fcel, lf_flig, fr_flab, fr_fcel, fr_flig
     use pftvarcon , only : leaf_long, froot_long, evergreen, stress_decid, season_decid
-    use pftvarcon , only : fertnitro, graincn, fleafcn, ffrootcn, fstemcn, dwood
+    use pftvarcon , only : manunitro, graincn, fleafcn, ffrootcn, fstemcn, dwood
     use pftvarcon , only : presharv, convfact, fyield
     use pftvarcon , only : leafcp,lflitcp, frootcp, livewdcp, deadwdcp,graincp
     use pftvarcon , only : vmax_plant_nh4, vmax_plant_no3, vmax_plant_p, vmax_minsurf_p_vr
@@ -237,7 +237,7 @@ contains
     allocate(this%root_radius   (0:numpft))        ; this%root_radius  (:)   =nan
     allocate(this%root_density  (0:numpft))        ; this%root_density (:)   =nan
     allocate(this%rootprof_beta (0:numpft))        ; this%rootprof_beta(:)   =nan
-    allocate(this%fertnitro     (0:numpft))        ; this%fertnitro    (:)   =nan
+    allocate(this%manunitro     (0:numpft))        ; this%manunitro    (:)   =nan
     allocate(this%fleafcn       (0:numpft))        ; this%fleafcn      (:)   =nan
     allocate(this%ffrootcn      (0:numpft))        ; this%ffrootcn     (:)   =nan
     allocate(this%fstemcn       (0:numpft))        ; this%fstemcn      (:)   =nan
@@ -359,7 +359,7 @@ contains
        this%dwood(m)        = dwood
        this%root_radius(m)  = 0.29e-03_r8 !(m)
        this%root_density(m) = 0.31e06_r8 !(g biomass / m3 root)
-       this%fertnitro(m)    = fertnitro(m)
+       this%manunitro(m)    = manunitro(m)
        this%fleafcn(m)      = fleafcn(m)
        this%ffrootcn(m)     = ffrootcn(m)
        this%fstemcn(m)      = fstemcn(m)

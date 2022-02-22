@@ -14,7 +14,7 @@ module elm_driver
   use elm_varpar             , only : nlevtrc_soil, nlevsoi
   use elm_varctl             , only : wrtdia, iulog, create_glacier_mec_landunit, use_fates, use_betr, use_extrasnowlayers
   use elm_varctl             , only : use_cn, use_lch4, use_voc, use_noio, use_c13, use_c14
-  use elm_varctl             , only : use_erosion, use_fates_sp
+  use elm_varctl             , only : use_erosion, use_fates_sp, use_fan
   use clm_time_manager       , only : get_step_size, get_curr_date, get_ref_date, get_nstep, is_beg_curr_day, get_curr_time_string
   use clm_time_manager       , only : get_curr_calday, get_days_per_year
   use elm_varpar             , only : nlevsno, nlevgrnd, crop_prog
@@ -150,6 +150,8 @@ module elm_driver
   use VegetationDataType     , only : veg_cs, c13_veg_cs, c14_veg_cs
   use VegetationDataType     , only : veg_ns, veg_nf
   use VegetationDataType     , only : veg_ps, veg_pf
+
+  use FanStreamMod           , only : fanstream_interp
 
   !----------------------------------------------------------------------------
   ! bgc interface & pflotran:
@@ -633,6 +635,10 @@ contains
 
 #endif
 
+    if (use_fan) then
+       call fanstream_interp(bounds_proc, atm2lnd_vars)
+    end if
+
     ! ============================================================================
     ! Initialize variables from previous time step, downscale atm forcings, and
     ! Determine canopy interception and precipitation onto ground surface.
@@ -990,7 +996,7 @@ contains
                  canopystate_vars, soilstate_vars, temperature_vars, crop_vars, &
                  photosyns_vars, soilhydrology_vars, energyflux_vars,&
                  PlantMicKinetics_vars,                                         &
-                 phosphorusflux_vars, phosphorusstate_vars)
+                 phosphorusflux_vars, phosphorusstate_vars, frictionvel_vars)
 
            call AnnualUpdate(bounds_clump,            &
                   filter(nc)%num_soilc, filter(nc)%soilc, &
@@ -1016,6 +1022,7 @@ contains
              call EcosystemDynNoLeaching1(bounds_clump,         &
                        filter(nc)%num_soilc, filter(nc)%soilc,  &
                        filter(nc)%num_soilp, filter(nc)%soilp,  &
+                       filter(nc)%num_pcropp, filter(nc)%pcropp, &
                        cnstate_vars,            &
                        atm2lnd_vars,            &
                        canopystate_vars, soilstate_vars, crop_vars,   &

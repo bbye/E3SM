@@ -9,9 +9,10 @@ module lnd2atmMod
   use shr_log_mod            , only : errMsg => shr_log_errMsg
   use abortutils             , only : endrun
   use shr_megan_mod        , only : shr_megan_mechcomps_n
+  use shr_fan_mod          , only : shr_fan_to_atm
   use elm_varpar           , only : numrad, ndst, nlevgrnd, nlevsno, nlevsoi !ndst = number of dust bins.
   use elm_varcon           , only : rair, grav, cpair, hfus, tfrz, spval
-  use elm_varctl           , only : iulog, use_c13, use_cn, use_lch4, use_voc, use_fates, use_atm_downscaling_to_topunit
+  use elm_varctl           , only : iulog, use_c13, use_cn, use_lch4, use_voc, use_fates, use_atm_downscaling_to_topunit, use_fan
   use elm_varctl           , only : use_lnd_rof_two_way
   use tracer_varcon        , only : is_active_betr_bgc
   use seq_drydep_mod   , only : n_drydep, drydep_method, DD_XLND
@@ -20,6 +21,7 @@ module lnd2atmMod
   use lnd2atmType          , only : lnd2atm_type
   use atm2lndType          , only : atm2lnd_type
   use CH4Mod               , only : ch4_type
+  use CNNitrogenFluxType   , only : nitrogenflux_type
   use DUSTMod              , only : dust_type
   use DryDepVelocity       , only : drydepvel_type
   use VocEmissionMod       , only : vocemis_type
@@ -30,7 +32,7 @@ module lnd2atmMod
   use GridcellType         , only : grc_pp
   use TopounitDataType     , only : top_es, top_af                 ! To calculate t_rad at topounit level needed in downscaling
   use GridcellDataType     , only : grc_ef, grc_ws, grc_wf
-  use ColumnDataType       , only : col_ws, col_wf, col_cf, col_es
+  use ColumnDataType       , only : col_ws, col_wf, col_cf, col_es, col_nf
   use VegetationDataType   , only : veg_es, veg_ef, veg_ws, veg_wf
   use SoilHydrologyType    , only : soilhydrology_type 
   use spmdmod          , only: masterproc
@@ -139,7 +141,7 @@ contains
   !------------------------------------------------------------------------
   subroutine lnd2atm(bounds, &
        atm2lnd_vars, surfalb_vars, frictionvel_vars, &
-       energyflux_vars, &
+       energyflux_vars, nitrogenflux_vars, &
        solarabs_vars, drydepvel_vars, &
        vocemis_vars, dust_vars, ch4_vars, soilhydrology_vars, lnd2atm_vars)
     !
@@ -354,6 +356,14 @@ contains
             ch4_surf_flux_tot_col(bounds%begc:bounds%endc) , &
             flux_ch4_grc         (bounds%begg:bounds%endg) , &
             c2l_scale_type= unity, l2g_scale_type=unity )
+    end if
+
+    ! nh3 flux
+    if (shr_fan_to_atm) then
+       call c2g(bounds,     &
+            nitrogenflux_vars%nh3_total_col (bounds%begc:bounds%endc), &
+            lnd2atm_vars%flux_nh3_grc  (bounds%begg:bounds%endg), &
+            c2l_scale_type= 'unity', l2g_scale_type='unity')
     end if
 
     !----------------------------------------------------
