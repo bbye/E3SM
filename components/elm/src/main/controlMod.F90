@@ -40,7 +40,7 @@ module controlMod
   use UrbanParamsType         , only: urban_hac, urban_traffic
   use FrictionVelocityMod     , only: implicit_stress, atm_gustiness
   use elm_varcon              , only: h2osno_max
-  use elm_varctl              , only: use_dynroot, use_fan, fan_mode, fan_to_bgc
+  use elm_varctl              , only: use_dynroot, use_fan, fan_mode, fan_to_bgc_veg
   use FanMod                  , only: nh4_ads_coef
   use AllocationMod           , only: nu_com_phosphatase,nu_com_nfix 
   use elm_varctl              , only: nu_com, use_var_soil_thick
@@ -1226,6 +1226,7 @@ contains
     write(iulog,*) '    use_lnd_rof_two_way    = ', use_lnd_rof_two_way
     write(iulog,*) '    lnd_rof_coupling_nstep = ', lnd_rof_coupling_nstep
 
+    write(iulog,*) '    use_fan = ', use_fan
     if (use_fan) then
        write(iulog,*) ' fan_mode = ', fan_mode
        write(iulog,*) ' nh4_ads_coef = ', nh4_ads_coef

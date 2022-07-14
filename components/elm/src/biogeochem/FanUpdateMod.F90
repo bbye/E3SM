@@ -25,20 +25,15 @@ module FanUpdateMod
   use FanMod
   use shr_kind_mod, only : r8 => shr_kind_r8, CL => shr_kind_cl
   use decompMod                       , only : bounds_type
-  use clm_varctl                      , only : fan_to_bgc_crop, fan_to_bgc_veg, &
+  use elm_varctl                      , only : fan_to_bgc_crop, fan_to_bgc_veg, &
                                                fan_nh3_to_atm
   use atm2lndType                     , only : atm2lnd_type
-  use TemperatureType                 , only : temperature_type
   use FrictionVelocityType            , only : frictionvel_type
   use shr_infnan_mod                  , only : isnan => shr_infnan_isnan
-  use CNNitrogenStateType             , only : nitrogenstate_type
-  use CNNitrogenFluxType              , only : nitrogenflux_type
-  use WaterStateType                  , only : waterstate_type
-  use WaterFluxType                   , only : waterflux_type
   use SoilStateType                   , only : soilstate_type
   use ColumnType                      , only : col_pp                
   use VegetationType                  , only : veg_pp                
-  use clm_varctl                      , only : iulog
+  use elm_varctl                      , only : iulog
   use subgridAveMod                   , only : p2c
   use VegetationDataType              , only : veg_nf, veg_ns, veg_es
   use ColumnDataType                  , only : col_nf, col_ns, col_ws, col_wf, col_es
@@ -120,7 +115,7 @@ contains
     !
     ! Read FAN namelist and set the module variables according to it. 
     ! 
-    use clm_varctl     , only : use_fan, fan_mode
+    use elm_varctl     , only : use_fan, fan_mode
 
     character(len=*), parameter :: subname = 'fanInit'
 
@@ -144,20 +139,16 @@ contains
   !************************************************************************************
 
   subroutine fan_eval(bounds, num_soilc, filter_soilc, &
-       atm2lnd_vars, &
-       nitrogenflux_vars, &
-       nitrogenstate_vars, &
-       waterstate_vars, soilstate_vars, temperature_vars, &
-       waterflux_vars, frictionvel_vars)
+       atm2lnd_vars, soilstate_vars,  frictionvel_vars)
     use clm_time_manager, only: get_step_size, get_curr_date, get_curr_calday, get_nstep
-    use clm_varpar, only: max_patch_per_col
+    use elm_varpar, only: max_patch_per_col
     use LandunitType, only: lun_pp
     use shr_sys_mod, only : shr_sys_flush
     use GridcellType, only: grc_pp
     use abortutils, only : endrun
     use pftvarcon, only : nc4_grass, nc3_nonarctic_grass, nc3_arctic_grass
     use landunit_varcon, only:  istsoil, istcrop
-    use clm_varcon, only : spval, ispval
+    use elm_varcon, only : spval, ispval
     use decompMod, only : bounds_type
     use subgridAveMod, only : p2c
     !
@@ -169,13 +160,8 @@ contains
     integer                  , intent(in)    :: num_soilc       ! number of soil columns in filter
     integer                  , intent(in)    :: filter_soilc(:) ! filter for soil columns
     type(atm2lnd_type)       , intent(in)    :: atm2lnd_vars
-    type(nitrogenflux_type) , intent(inout) :: nitrogenflux_vars
-    type(nitrogenstate_type), intent(inout) :: nitrogenstate_vars
-    type(waterstate_type)   , intent(in)    :: waterstate_vars
-    type(soilstate_type)    , intent(in)    :: soilstate_vars
-    type(temperature_type)  , intent(in)    :: temperature_vars
-    type(waterflux_type)    , intent(in)    :: waterflux_vars
-    type(frictionvel_type)  , intent(in)    :: frictionvel_vars
+    type(soilstate_type)     , intent(in)    :: soilstate_vars
+    type(frictionvel_type)   , intent(in)    :: frictionvel_vars
 
     integer, parameter :: &
          ! Use this many sub-steps. This improves numerical accuracy but is perhaps not
@@ -241,8 +227,6 @@ contains
     do_balance_checks = balance_check_freq > 0 .and. mod(get_nstep(), balance_check_freq) == 0
 
     associate(&
-         ns => nitrogenstate_vars, &
-         nf => nitrogenflux_vars, &
          forc_ndep_urea => atm2lnd_vars%forc_ndep_urea_grc, & ! Fraction of urea in fertilizer N
          forc_ndep_no3 => atm2lnd_vars%forc_ndep_nitr_grc, &   ! Fraction of NO3 in fertilizer N
          ram1 => frictionvel_vars%ram1_patch, & ! Aerodynamic resistance, s/m
@@ -254,9 +238,9 @@ contains
          col_nf%fert_n_appl(bounds%begc:bounds%endc))
 
     if (do_balance_checks) then
-       nstored_old = get_total_n(ns, nf, 'pools_storage')
-       nsoilman_old = get_total_n(ns, nf, 'pools_manure')
-       nsoilfert_old = get_total_n(ns, nf, 'pools_fertilizer')
+       nstored_old = get_total_n('pools_storage')
+       nsoilman_old = get_total_n('pools_manure')
+       nsoilfert_old = get_total_n('pools_fertilizer')
     end if
 
     ! Assign the "pastoral" manure entirely to the natural vegetation column
@@ -269,12 +253,10 @@ contains
        if (lun_pp%itype(l) == istsoil) then
           col_nf%manure_n_grz(c) &
                = atm2lnd_vars%forc_ndep_past_grc(g) / col_pp%wtgcell(c) * 1e3_r8 ! kg to g 
-!BAD
           if (col_nf%manure_n_grz(c) > 1e12 .or. isnan(col_nf%manure_n_grz(c))) then
              write (*,*) 'bad ngrz', col_nf%manure_n_grz(c), col_pp%wtgcell(c)
              call endrun('bad ngrz 1')
           end if
-!BAD
           if (col_nf%manure_n_appl(c) > 0._r8) then
              write(iulog, *) 'manure_n_appl:', col_nf%manure_n_appl(c)
              call endrun(msg='Found fertilizer in soil column')
@@ -288,7 +270,7 @@ contains
        call endrun('nan man n appl before storage')
     end if
 
-    call handle_storage(bounds, temperature_vars, frictionvel_vars, dt, &
+    call handle_storage(bounds, frictionvel_vars, dt, &
          atm2lnd_vars%forc_ndep_mgrz_grc, & 
          col_ns%manure_n_stored, col_ns%manure_tan_stored, &
          col_nf%manure_n_appl, col_nf%manure_tan_appl, &
@@ -358,13 +340,12 @@ contains
           col_ns%fan_grz_fract(c) = 1.0_r8 ! for crops handled by handle_storage
        end if
 
-       watertend = waterstate_vars%h2osoi_tend_tsl_col(c) * 1e-3 ! to m/s
+       watertend = col_ws%h2osoi_tend_tsl_col(c) * 1e-3 ! to m/s
 
        tg = col_es%t_grnd(c)
        theta = max(col_ws%h2osoi_vol(c,1), 1e-6_r8)
        thetasat = soilstate_vars%watsat_col(c,1)
        theta = min(theta, 0.98_r8*thetasat)
-       !theta = max(theta, 1e-6)
        infiltr_m_s = max(col_wf%qflx_infl(c), 0.0_r8) * 1e-3_r8
        evap_m_s = col_wf%qflx_evap_grnd(c) * 1e-3_r8
        runoff_m_s = max(col_wf%qflx_surf(c), 0.0_r8) * 1e-3_r8
@@ -439,8 +420,7 @@ contains
        ! Manure application
 
        org_n_tot = col_nf%manure_n_appl(c) - col_nf%manure_tan_appl(c)
-       ! Use the the same fractionation of organic N as for grazing, after removing the
-       ! "explicitly" calculated TAN.
+       ! Use the the same fractionation of organic N as for grazing, after removing the "explicitly" calculated TAN.
        ndep_org(ind_avail) = org_n_tot * fract_avail
        ndep_org(ind_resist) = org_n_tot * fract_resist 
        ndep_org(ind_unavail) = org_n_tot * fract_unavail 
@@ -494,8 +474,7 @@ contains
             = col_nf%manure_nh4_to_soil(c) + fluxes_tmp(iflx_soild) + fluxes_tmp(iflx_soilq) &
             + n_residual_total / dt + soilflux_org
 
-       ! Fertilizer
-       ! split fertilizer N berween urea, no3 and the remaining other ammonium-N.
+       ! Fertilizer split fertilizer N berween urea, no3 and the remaining other ammonium-N.
        fert_total = col_nf%fert_n_appl(c)
 
        ! A fraction of fertilizer N is made unavailable by mechanical incorporation, this
@@ -596,22 +575,20 @@ contains
 
     if (do_balance_checks) then
        call balance_check('Storage', nstored_old, &
-            get_total_n(ns, nf, 'pools_storage'), get_total_n(ns, nf, 'fluxes_storage'))
+            get_total_n('pools_storage'), get_total_n('fluxes_storage'))
        call balance_check('Manure', nsoilman_old, &
-            get_total_n(ns, nf, 'pools_manure'), get_total_n(ns, nf, 'fluxes_manure'))
+            get_total_n('pools_manure'), get_total_n('fluxes_manure'))
        call balance_check('Fertilizer', nsoilfert_old, &
-            get_total_n(ns, nf, 'pools_fertilizer'), get_total_n(ns, nf, 'fluxes_fertilizer'))
+            get_total_n('pools_fertilizer'), get_total_n('fluxes_fertilizer'))
     end if
 
-    call update_summary(ns, nf, filter_soilc, num_soilc)
+    call update_summary(filter_soilc, num_soilc)
 
     end associate
 
   contains
 
-    real(r8) function get_total_n(ns, nf, which) result(total)
-      type(nitrogenstate_type), intent(in) :: ns
-      type(nitrogenflux_type), intent(in) :: nf
+    real(r8) function get_total_n(which) result(total)
       character(len=*), intent(in) :: which
 
       total = 0._r8
@@ -680,7 +657,7 @@ contains
 
   !************************************************************************************
 
-  subroutine handle_storage(bounds, temperature_vars, frictionvel_vars, dt,  &
+  subroutine handle_storage(bounds, frictionvel_vars, dt,  &
        ndep_mixed_grc, n_stored, tan_stored, &
        n_manure_spread, tan_manure_spread, &
        n_manure_graze, n_manure_mixed, &
@@ -697,17 +674,16 @@ contains
     ! 
     use landunit_varcon, only : max_lunit
     use pftvarcon, only : nc4_grass, nc3_nonarctic_grass, nc3_arctic_grass
-    use clm_varcon, only : ispval
+    use elm_varcon, only : ispval
     use landunit_varcon,      only:  istsoil, istcrop
     use abortutils     , only : endrun
     use LandunitType   , only: lun_pp
     use GridcellType   , only: grc_pp
-    use clm_varctl     , only : iulog
+    use elm_varctl     , only : iulog
     use VegetationType           , only : veg_pp
 
     implicit none
     type(bounds_type), intent(in)    :: bounds
-    type(temperature_type) , intent(in) :: temperature_vars
     type(frictionvel_type) , intent(in) :: frictionvel_vars
     real(r8), intent(in) :: dt ! timestep, sec
 
@@ -735,8 +711,7 @@ contains
     integer, intent(in)    :: filter_soilc(:) ! filter for soil columns
 
     real(r8), parameter :: kg_to_g = 1e3_r8
-    ! FAN allows a fraction of manure N diverted before storage; this option is currently
-    ! not used.
+    ! FAN allows a fraction of manure N diverted before storage; this option is currently not used.
     real(r8), parameter :: fract_direct = 0.0_r8
 
     ! N fluxes, gN/m2/sec:
@@ -754,8 +729,7 @@ contains
     real(r8) :: total_to_store_tan ! TAN remaining after losses in barns
 
 
-    ! N fluxes evaluated by eval_fluxes_storage. Indices are in FanMode.F9.  Dimensions
-    ! are (type of flux).
+    ! N fluxes evaluated by eval_fluxes_storage. Indices are in FanMode.F9.  Dimensions are (type of flux).
     real(r8) :: fluxes_nitr(num_fluxes), fluxes_tan(num_fluxes)
     ! Auxiliary and index variables:
     logical :: is_grass
@@ -831,8 +805,7 @@ contains
              manure_n_barns(c) = flux_avail
 
              ! Evaluate the NH3 losses, separate for ruminants (open barns) and others
-             ! (poultry and pigs, closed barns). Note the slicing of fluxes(:,:) and
-             ! fluxes_tan(:,:).
+             ! (poultry and pigs, closed barns). Note the slicing of fluxes(:,:) and fluxes_tan(:,:).
              nh3_flux_stores(c) = 0.0_r8
 
              call eval_fluxes_storage(flux_avail, 'open',&
@@ -884,13 +857,11 @@ contains
 
   !************************************************************************************
 
-  subroutine update_summary(ns, nf, filter_soilc, num_soilc)
+  subroutine update_summary(filter_soilc, num_soilc)
     ! Collect FAN fluxes and pools into aggregates used by the NitrogenBalanceCheck.
     use landunit_varcon, only : istcrop
     use LandunitType   , only : lun_pp
 
-    type(nitrogenstate_type), intent(inout) :: ns
-    type(nitrogenflux_type), intent(inout) :: nf
     integer, intent(in)    :: num_soilc       ! number of soil columns in filter
     integer, intent(in)    :: filter_soilc(:) ! filter for soil columns
 
@@ -932,7 +903,7 @@ contains
 
   !************************************************************************************
 
-  subroutine fan_to_sminn(bounds, filter_soilc, num_soilc, nf, nfertilization)
+  subroutine fan_to_sminn(bounds, filter_soilc, num_soilc, nfertilization)
     !
     ! Collect the FAN fluxes into totals which are either passed to the CLM N cycle
     ! (depending on the fan_to_bgc_ switches) or used diagnostically.
@@ -943,7 +914,6 @@ contains
     type(bounds_type), intent(in) :: bounds
     integer, intent(in) :: filter_soilc(:)
     integer, intent(in) :: num_soilc
-    type(nitrogenflux_type), intent(inout) :: nf
     ! patch level fertilizer application + manure production 
     real(r8), intent(inout) :: nfertilization(bounds%begp:) 
 
@@ -959,8 +929,6 @@ contains
        flux_fert = col_nf%fert_no3_to_soil(c) + col_nf%fert_nh4_to_soil(c)
        manure_prod = col_nf%manure_n_barns(c) + col_nf%manure_n_grz(c)
 
-       !if (c .eq. 101363) write(*,*) flux_manure, col_nf%manure_no3_to_soil(c), col_nf%manure_nh4_to_soil(c), flux_fert
-
        included = (lun_pp%itype(col_pp%landunit(c)) == istcrop .and. fan_to_bgc_crop) &
              .or. (lun_pp%itype(col_pp%landunit(c)) == istsoil .and. fan_to_bgc_veg)
 
@@ -969,8 +937,7 @@ contains
           col_nf%manure_n_to_sminn(c) = flux_manure
           col_nf%synthfert_n_to_sminn(c) = flux_fert
           do p = col_pp%pfti(c), col_pp%pftf(c)
-             ! NFERTILIZATION gets the fertilizer applied + all manure N produced in the
-             ! column. 
+             ! NFERTILIZATION gets the fertilizer applied + all manure N produced in the column. 
              nfertilization(p) = manure_prod + col_nf%fert_n_appl(c)
           end do
        end if

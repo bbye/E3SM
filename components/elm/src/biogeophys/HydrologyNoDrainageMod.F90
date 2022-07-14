@@ -227,7 +227,7 @@ contains
  
       if ( use_fan ) then 
          ! save the h2osoi_liq in top layer before evaluating the soilwater movement
-         call store_tsl_moisture(waterstate_vars, filter_hydrologyc, num_hydrologyc) 
+         call store_tsl_moisture(filter_hydrologyc, num_hydrologyc) 
       end if
 
 #ifndef _OPENACC
@@ -254,7 +254,7 @@ contains
  
       if ( use_fan ) then 
          ! use the saved value to calculate the tendency
-         call eval_tsl_moist_tend(waterstate_vars , filter_hydrologyc, num_hydrologyc)
+         call eval_tsl_moist_tend(filter_hydrologyc, num_hydrologyc)
       end if
 
 #ifndef _OPENACC
@@ -587,11 +587,10 @@ contains
     ! Subroutines for storing the time derivative of top most soil layer
     ! moisture. This is used for diagnosing the downwards moisture flux within FAN.
 
-    subroutine store_tsl_moisture(waterstate_vars, filter, num_fc)
+    subroutine store_tsl_moisture(filter, num_fc)
       ! Store the soil water within topmost layer before evaluating soil
       ! moisture
       ! transport.
-      type(waterstate_type), intent(inout) :: waterstate_vars
       integer, intent(in) :: filter(:)
       integer, intent(in) :: num_fc
 
@@ -599,22 +598,21 @@ contains
 
       do fc = 1, num_fc
          c = filter(fc)
-         h2osoi_liq_saved(c) = waterstate_vars%h2osoi_liq_col(c,1)
+         h2osoi_liq_saved(c) = col_ws%h2osoi_liq(c,1)
       end do
 
     end subroutine store_tsl_moisture
 
-    subroutine eval_tsl_moist_tend(waterstate_vars, filter, num_fc)
+    subroutine eval_tsl_moist_tend(filter, num_fc)
       ! Evaluate the time derivative of soil liquid water due to percolation as
       ! required in FAN.
-      type(waterstate_type), intent(inout) :: waterstate_vars
       integer, intent(in) :: filter(:)
       integer, intent(in) :: num_fc
 
       integer :: fc, c
 
-      associate(h2osoi_tend_tsl => waterstate_vars%h2osoi_tend_tsl_col, &
-           h2osoi_liq => waterstate_vars%h2osoi_liq_col)
+      associate(h2osoi_tend_tsl => col_ws%h2osoi_tend_tsl_col, &
+           h2osoi_liq => col_ws%h2osoi_liq)
 
       do fc = 1, num_fc
          c = filter(fc)

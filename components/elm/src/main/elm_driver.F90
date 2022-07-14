@@ -1026,7 +1026,7 @@ contains
                        cnstate_vars,            &
                        atm2lnd_vars,            &
                        canopystate_vars, soilstate_vars, crop_vars,   &
-                       ch4_vars, photosyns_vars )
+                       ch4_vars, photosyns_vars, frictionvel_vars )
 
              !--------------------------------------------------------------------------------
              if (use_elm_interface) then

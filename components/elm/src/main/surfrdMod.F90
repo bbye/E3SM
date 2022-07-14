@@ -15,6 +15,7 @@ module surfrdMod
   use elm_varctl      , only : iulog, scmlat, scmlon, single_column, firrig_data
   use elm_varctl      , only : create_glacier_mec_landunit
   use surfrdUtilsMod  , only : check_sums_equal_1_2d, check_sums_equal_1_3d
+  use surfrdUtilsMod  , only : collapse_crop_types, collapse_crop_var
   use ncdio_pio       , only : file_desc_t, var_desc_t, ncd_pio_openfile, ncd_pio_closefile
   use ncdio_pio       , only : ncd_io, check_var, ncd_inqfdims, check_dim, ncd_inqdid, ncd_inqdlen
   use pio
@@ -903,13 +904,13 @@ contains
   end subroutine surfrd_special
 
 !-----------------------------------------------------------------------
-  subroutine surfrd_cftformat( ncid, begg, endg, wt_cft, cftsize, surfpft_size )
+  subroutine surfrd_cftformat( ncid, begg, endg, wt_cft, fert_cft, fert_p_cft, cftsize, surfpft_size )
     !
     ! !DESCRIPTION:
     !     Handle generic crop types for file format where they are on their own
     !     crop landunit and read in as Crop Function Types.
     ! !USES:
-    use elm_varsur      , only : fert_cft, fert_p_cft, wt_nat_patch
+    use elm_varsur      , only : wt_nat_patch
     use elm_varpar      , only : cft_size, cft_lb, surfpft_lb
     use topounit_varcon,  only : max_topounits
     ! !ARGUMENTS:
@@ -919,6 +920,8 @@ contains
     integer          , intent(in)    :: cftsize      ! CFT size
     real(r8), pointer, intent(inout) :: wt_cft(:,:,:)  ! CFT weights
     integer          , intent(in)    :: surfpft_size  ! natural PFT size
+    real(r8), pointer, intent(inout) :: fert_cft(:,:,:)   ! Fertilizer
+    real(r8), pointer, intent(inout) :: fert_p_cft(:,:,:) ! Fertilizer
     !
     ! !LOCAL VARIABLES:
     logical  :: readvar                        ! is variable on dataset
@@ -928,6 +931,12 @@ contains
     SHR_ASSERT_ALL((lbound(wt_cft) == (/begg,1, cft_lb/)), errMsg(__FILE__, __LINE__))
     SHR_ASSERT_ALL((ubound(wt_cft, dim=1) == (/endg/)), errMsg(__FILE__, __LINE__))
     SHR_ASSERT_ALL((ubound(wt_cft, dim=3) >= (/cftsize+1-cft_lb/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((lbound(fert_cft) == (/begg,1, cft_lb/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(fert_cft, dim=1) == (/endg/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(fert_cft, dim=3) >= (/cftsize+1-cft_lb/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((lbound(fert_p_cft) == (/begg,1, cft_lb/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(fert_p_cft, dim=1) == (/endg/)), errMsg(__FILE__, __LINE__))
+    SHR_ASSERT_ALL((ubound(fert_p_cft, dim=3) >= (/cftsize+1-cft_lb/)), errMsg(__FILE__, __LINE__))
     SHR_ASSERT_ALL((ubound(wt_nat_patch) >= (/endg,max_topounits,surfpft_size-1+surfpft_lb/)), errMsg(__FILE__, __LINE__))
 
     call check_dim(ncid, 'cft', cftsize)
@@ -1060,11 +1069,16 @@ contains
     use elm_varctl      , only : irrigate
     use elm_varpar      , only : surfpft_lb, surfpft_ub, surfpft_size, cft_lb, cft_ub, cft_size
     use elm_varpar      , only : crop_prog
-    use elm_varsur      , only : wt_lunit, wt_nat_patch, wt_cft, fert_cft
+    use elm_varsur      , only : wt_lunit, wt_nat_patch, wt_cft, fert_cft, fert_p_cft
     use landunit_varcon , only : istsoil, istcrop
     use pftvarcon       , only : nc3crop, nc3irrig, npcropmin
     use pftvarcon       , only : ncorn, ncornirrig, nsoybean, nsoybeanirrig
     use pftvarcon       , only : nscereal, nscerealirrig, nwcereal, nwcerealirrig
+    use pftvarcon       , only : ncassava, ncotton, nfoddergrass, noilpalm, nograins, nrapeseed 
+    use pftvarcon       , only : nrice, nrtubers, nsugarcane, nmiscanthus, nswitchgrass, nwillow, npoplar
+    use pftvarcon       , only : ncassavairrig, ncottonirrig, nfoddergrassirrig, noilpalmirrig, nograinsirrig, nrapeseedirrig
+    use pftvarcon       , only : nriceirrig, nrtubersirrig, nsugarcaneirrig, nmiscanthusirrig, nswitchgrassirrig, nwillowirrig, npoplarirrig
+
     use surfrdUtilsMod  , only : convert_cft_to_pft, convert_pft_to_cft
     !
     ! !ARGUMENTS:
@@ -1082,6 +1096,8 @@ contains
     logical  :: cft_dim_exists                 ! does the dimension 'cft' exist on the dataset?
     real(r8),pointer :: arrayl(:,:)              ! local array
     real(r8),pointer :: array2D(:,:,:)                 ! local 2D array
+    real(r8),pointer :: arrayNF(:,:,:)
+    real(r8),pointer :: arrayPF(:,:,:)
     character(len=32) :: subname = 'surfrd_veg_all'  ! subroutine name
 !-----------------------------------------------------------------------
 
@@ -1108,7 +1124,13 @@ contains
     if ( cft_dim_exists .and. create_crop_landunit ) then
 
        ! Format where CFT's is read in a seperate landunit
-       call surfrd_cftformat( ncid, begg, endg, wt_cft, cft_size, surfpft_size )
+       allocate(arrayNF(begg:endg, max_topounits, cft_lb:cft_size-1+cft_lb))
+       allocate(arrayPF(begg:endg, max_topounits, cft_lb:cft_size-1+cft_lb))
+       call surfrd_cftformat( ncid, begg, endg, wt_cft, arrayNF, arrayPF, cft_size, surfpft_size )
+       fert_cft(begg:, 1:, cft_lb:)   = arrayNF(begg:,1:, cft_lb:cft_ub)
+       fert_p_cft(begg:, 1:, cft_lb:) = arrayPF(begg:,1:, cft_lb:cft_ub)
+       deallocate(arrayNF)
+       deallocate(arrayPF)
 
     else if ( (.not. cft_dim_exists) .and. (.not. create_crop_landunit) )then
 
@@ -1124,6 +1146,7 @@ contains
           call surfrd_fates_nocropmod( ncid, begg, endg )
           ! Set the weighting on the crop patches to zero
           fert_cft(begg:endg,:,cft_lb:cft_ub) = 0.0_r8  ! cft_lb:cft_ub has a size of zero anyway...
+          fert_p_cft(begg:endg,:,cft_lb:cft_ub) = 0.0_r8
           wt_cft(begg:endg,:,cft_lb:cft_ub)   = 0.0_r8  ! cft_lb:cft_ub has a size of zero anyway...
        else
           call endrun( msg=' ERROR: New format surface datasets require create_crop_landunit TRUE'//errMsg(__FILE__, __LINE__))
@@ -1187,12 +1210,54 @@ contains
             wt_cft(nl,t,nwcerealirrig) = 0._r8
             wt_cft(nl,t,nsoybean)      = wt_cft(nl,t,nsoybean) + wt_cft(nl,t,nsoybeanirrig)
             wt_cft(nl,t,nsoybeanirrig) = 0._r8
+            wt_cft(nl,t,ncassava)      = wt_cft(nl,t,ncassava) + wt_cft(nl,t,ncassavairrig)
+            wt_cft(nl,t,ncassavairrig) = 0._r8
+            wt_cft(nl,t,ncotton)       = wt_cft(nl,t,ncotton)  + wt_cft(nl,t,ncottonirrig)
+            wt_cft(nl,t,ncottonirrig)  = 0._r8
+            wt_cft(nl,t,nfoddergrass)  = wt_cft(nl,t,nfoddergrass) + wt_cft(nl,t,nfoddergrassirrig)
+            wt_cft(nl,t,nfoddergrassirrig) = 0._r8
+            wt_cft(nl,t,noilpalm)      = wt_cft(nl,t,noilpalm) + wt_cft(nl,t,noilpalmirrig)
+            wt_cft(nl,t,noilpalmirrig) = 0._r8
+            wt_cft(nl,t,nograins)      = wt_cft(nl,t,nograins) + wt_cft(nl,t,nograinsirrig)
+            wt_cft(nl,t,nograinsirrig) = 0._r8
+            wt_cft(nl,t,nrapeseed)       = wt_cft(nl,t,nrapeseed)  + wt_cft(nl,t,nrapeseedirrig)
+            wt_cft(nl,t,nrapeseedirrig)  = 0._r8
+            wt_cft(nl,t,nrice)           = wt_cft(nl,t,nrice)  + wt_cft(nl,t,nriceirrig)
+            wt_cft(nl,t,nriceirrig)      = 0._r8
+            wt_cft(nl,t,nrtubers)        = wt_cft(nl,t,nrtubers) + wt_cft(nl,t,nrtubersirrig)
+            wt_cft(nl,t,nrtubersirrig)   = 0._r8
+            wt_cft(nl,t,nsugarcane)      = wt_cft(nl,t,nsugarcane) + wt_cft(nl,t,nsugarcaneirrig)
+            wt_cft(nl,t,nsugarcaneirrig) = 0._r8
+            wt_cft(nl,t,nmiscanthus)     = wt_cft(nl,t,nmiscanthus) + wt_cft(nl,t,nmiscanthusirrig)
+            wt_cft(nl,t,nmiscanthusirrig) = 0._r8
+            wt_cft(nl,t,nswitchgrass)     = wt_cft(nl,t,nswitchgrass)  + wt_cft(nl,t,nswitchgrassirrig)
+            wt_cft(nl,t,nswitchgrassirrig) = 0._r8
+            wt_cft(nl,t,npoplar)         = wt_cft(nl,t,npoplar) + wt_cft(nl,t,npoplar)
+            wt_cft(nl,t,npoplarirrig)    = 0._r8
+            wt_cft(nl,t,nwillow)         = wt_cft(nl,t,nwillow) + wt_cft(nl,t,nwillowirrig)
+            wt_cft(nl,t,nwillowirrig)    = 0._r8
+
           end do
        end do
-
+    end if
        !call check_sums_equal_1_3d(wt_cft, begg, 'wt_cft', subname,ntpu)
+    if (.not. use_fates) then
        call check_sums_equal_1_3d(wt_cft, begg, 'wt_cft', subname)
     end if
+    ! Call collapse_crop_types: allows need to maintain only 50-pft input data
+    ! For use_crop = .false. collapsing 50->16 pfts or 16->16 or some new
+    !    configuration
+    ! For use_crop = .true. most likely collapsing 78 to the list of crops for
+    !    which the CLM includes parameterizations
+    ! The call collapse_crop_types also appears in subroutine dyncrop_interp
+    call collapse_crop_types(wt_cft(begg:endg,:,:), fert_cft(begg:endg,:,:), fert_p_cft(begg:endg,:,:), begg, endg, verbose=.true.)
+
+    ! Collapse crop variables as needed
+    ! The call to collapse_crop_var also appears in subroutine dyncrop_interp
+    ! - fert_cft TODO Is this call redundant because it simply sets the crop
+    !                 variable to 0 where is_pft_known_to_model = .false.?
+    call collapse_crop_var(fert_cft(begg:endg,:,:), begg, endg)
+    call collapse_crop_var(fert_p_cft(begg:endg,:,:), begg, endg)
 
   end subroutine surfrd_veg_all
 

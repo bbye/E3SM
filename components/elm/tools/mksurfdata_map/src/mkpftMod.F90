@@ -899,10 +899,10 @@ subroutine mkpftAtt( ncid, dynlanduse, xtype )
 
         ! fertilizer
         call ncd_defvar(ncid=ncid, varname='NFERT', xtype=xtype, &
-             dim1name='gridcell', dim2name='lsmpft', &
+             dim1name='gridcell', dim2name='cft', &
              long_name='synthetic nitrogen fertilizer application rate', units='g/m^2')
         call ncd_defvar(ncid=ncid, varname='PFERT', xtype=xtype, &
-             dim1name='gridcell', dim2name='lsmpft', &
+             dim1name='gridcell', dim2name='cft', &
              long_name='synthetic phosphorus fertilizer application rate', units='g/m^2')
 
      else
@@ -912,10 +912,10 @@ subroutine mkpftAtt( ncid, dynlanduse, xtype )
 
        ! fertilizer
         call ncd_defvar(ncid=ncid, varname='NFERT', xtype=xtype, &
-             dim1name='lsmlon', dim2name='lsmlat', dim3name='lsmpft', &
+             dim1name='lsmlon', dim2name='lsmlat', dim3name='cft', &
              long_name='synthetic nitrogen fertilizer application rate', units='g/m^2')
         call ncd_defvar(ncid=ncid, varname='PFERT', xtype=xtype, &
-             dim1name='lsmlon', dim2name='lsmlat', dim3name='lsmpft', &
+             dim1name='lsmlon', dim2name='lsmlat', dim3name='cft', &
              long_name='synthetic phosphorus fertilizer application rate', units='g/m^2')
 
      end if

@@ -21,7 +21,6 @@ module lnd2atmMod
   use lnd2atmType          , only : lnd2atm_type
   use atm2lndType          , only : atm2lnd_type
   use CH4Mod               , only : ch4_type
-  use CNNitrogenFluxType   , only : nitrogenflux_type
   use DUSTMod              , only : dust_type
   use DryDepVelocity       , only : drydepvel_type
   use VocEmissionMod       , only : vocemis_type
@@ -141,7 +140,7 @@ contains
   !------------------------------------------------------------------------
   subroutine lnd2atm(bounds, &
        atm2lnd_vars, surfalb_vars, frictionvel_vars, &
-       energyflux_vars, nitrogenflux_vars, &
+       energyflux_vars, &
        solarabs_vars, drydepvel_vars, &
        vocemis_vars, dust_vars, ch4_vars, soilhydrology_vars, lnd2atm_vars)
     !
@@ -232,7 +231,8 @@ contains
       coszen_col       => surfalb_vars%coszen_col , &
       coszen_str       => lnd2atm_vars%coszen_str , &
       qflx_h2orof_drain     => col_wf%qflx_h2orof_drain , &
-      qflx_h2orof_drain_grc => lnd2atm_vars%qflx_h2orof_drain_grc &
+      qflx_h2orof_drain_grc => lnd2atm_vars%qflx_h2orof_drain_grc, &
+      nh3_total        => col_nf%nh3_total &
       )
     !----------------------------------------------------
     ! lnd -> atm
@@ -361,9 +361,9 @@ contains
     ! nh3 flux
     if (shr_fan_to_atm) then
        call c2g(bounds,     &
-            nitrogenflux_vars%nh3_total_col (bounds%begc:bounds%endc), &
+            nh3_total (bounds%begc:bounds%endc), &
             lnd2atm_vars%flux_nh3_grc  (bounds%begg:bounds%endg), &
-            c2l_scale_type= 'unity', l2g_scale_type='unity')
+            c2l_scale_type= unity, l2g_scale_type=unity)
     end if
 
     !----------------------------------------------------

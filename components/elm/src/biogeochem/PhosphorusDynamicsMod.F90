@@ -16,7 +16,7 @@ module PhosphorusDynamicsMod
   use CNCarbonFluxType    , only : carbonflux_type
   use elm_varpar          , only : nlevdecomp
   use elm_varctl          , only : use_vertsoilc
-
+  use subgridAveMod       , only : p2c
   use CNStateType         , only : cnstate_type
   use CropType            , only : crop_type
   use ColumnType          , only : col_pp
@@ -42,6 +42,7 @@ module PhosphorusDynamicsMod
   public :: PhosphorusBiochemMin
   public :: PhosphorusLeaching
   public :: PhosphorusBiochemMin_balance
+  public :: PhosphorusFert
 
   !-----------------------------------------------------------------------
 
@@ -814,8 +815,7 @@ contains
   end subroutine PhosphorusBiochemMin_balance
 
   !-----------------------------------------------------------------------
-  subroutine PhosphorusFert(bounds, num_soilc, filter_soilc, &
-       phosphorusflux_vars)
+  subroutine PhosphorusFert(bounds, num_soilc, filter_soilc)
     !
     ! !DESCRIPTION:
     ! On the radiation time step, update the phosphorus fertilizer for crops
@@ -827,7 +827,6 @@ contains
     type(bounds_type)       , intent(in)    :: bounds
     integer                 , intent(in)    :: num_soilc       ! number of soil columns in filter
     integer                 , intent(in)    :: filter_soilc(:) ! filter for soil columns
-    type(phosphorusflux_type) , intent(inout) :: phosphorusflux_vars
     !
     ! !LOCAL VARIABLES:
     integer :: c,fc                 ! indices

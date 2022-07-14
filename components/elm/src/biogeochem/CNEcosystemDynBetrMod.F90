@@ -179,7 +179,8 @@ module CNEcosystemDynBetrMod
 
        call t_startf('CNDeposition')
        call NitrogenDeposition(bounds, &
-            atm2lnd_vars, dt )
+            atm2lnd_vars, frictionvel_vars,  &
+            soilstate_vars, filter_soilc, num_soilc, dt )
        call t_stopf('CNDeposition')
 
        call t_startf('MaintenanceResp')

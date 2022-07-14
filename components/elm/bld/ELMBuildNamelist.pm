@@ -38,7 +38,7 @@ use File::Basename qw(dirname);
 use English;
 use Getopt::Long;
 use IO::File;
-use File::Glob ':glob';
+use File::Glob ':bsd_glob';
 
 #-------------------------------------------------------------------------------
 #
@@ -507,7 +507,7 @@ sub read_envxml_case_files {
   my %envxml = ();
   if ( defined($opts->{'envxml_dir'}) ) {
       (-d $opts->{'envxml_dir'})  or  fatal_error( "envxml_dir is not a directory" );
-      my @files = glob( $opts->{'envxml_dir'}."/env_*xml" );
+      my @files = bsd_glob( $opts->{'envxml_dir'}."/env_*xml" );
       ($#files >= 0)              or  fatal_error( "there are no env_*xml files in the envxml_dir" );
       foreach my $file (@files) {
           verbose_message( "Open env.xml file: $file" );
@@ -2877,20 +2877,20 @@ sub setup_logic_nitrogen_deposition {
   # Nitrogen deposition for bgc=CN,FATES (ndep) and FAN (fan)
   
   if ( $nl_flags->{'bgc_mode'} =~/cn|bgc|fates/ ) {
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, '${ndep}ndepmapalgo', 'phys'=>$nl_flags->{'phys'},
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, "${ndep}mapalgo", 'phys'=>$nl_flags->{'phys'},
                 'use_cn'=>$nl_flags->{'use_cn'}, 'use_fates'=>$nl_flags->{'use_fates'}, 'hgrid'=>$nl_flags->{'res'} );
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'stream_year_first_${ndep}', 'phys'=>$nl_flags->{'phys'},
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, "stream_year_first_${ndep}", 'phys'=>$nl_flags->{'phys'},
                 'use_cn'=>$nl_flags->{'use_cn'}, 'use_fates'=>$nl_flags->{'use_fates'}, 'sim_year'=>$nl_flags->{'sim_year'},
                 'sim_year_range'=>$nl_flags->{'sim_year_range'});
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'stream_year_last_${ndep}', 'phys'=>$nl_flags->{'phys'},
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, "stream_year_last_${ndep}", 'phys'=>$nl_flags->{'phys'},
                 'use_cn'=>$nl_flags->{'use_cn'}, 'use_fates'=>$nl_flags->{'use_fates'}, 'sim_year'=>$nl_flags->{'sim_year'},
                 'sim_year_range'=>$nl_flags->{'sim_year_range'});
     # Set align year, if first and last years are different
-    if ( $nl->get_value('stream_year_first_${ndep}') != $nl->get_value('stream_year_last_${ndep}') ) {
-      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'model_year_align_${ndep}', 'sim_year'=>$nl_flags->{'sim_year'},
+    if ( $nl->get_value("stream_year_first_${ndep}") != $nl->get_value("stream_year_last_${ndep}") ) {
+      add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, "model_year_align_${ndep}", 'sim_year'=>$nl_flags->{'sim_year'},
                   'sim_year_range'=>$nl_flags->{'sim_year_range'});
     }
-    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'stream_fldfilename_${ndep}', 'phys'=>$nl_flags->{'phys'},
+    add_default($test_files, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, "stream_fldfilename_${ndep}", 'phys'=>$nl_flags->{'phys'},
                 'use_cn'=>$nl_flags->{'use_cn'}, 'use_fates'=>$nl_flags->{'use_fates'}, 'rcp'=>$nl_flags->{'rcp'},
                 'hgrid'=>"1.9x2.5" );
   } else {
@@ -2950,11 +2950,11 @@ sub setup_logic_phosphorus_deposition {
 #-------------------------------------------------------------------------------
  
 sub setup_logic_fan {
+  my ($opts, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
    #
    # Flags to control FAN (Flow of Agricultural Nitrogen) nitrogen deposition (manure and fertilizer)
    #
-    my ($opts, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
-    if ( $physv->as_long() >= $physv->as_long("clm4_5") ) {
+    if ( $nl_flags->{'bgc_mode'} =~/cn|bgc/ ) { 
         if( $opts->{'fan'} ) {
            add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'use_fan',
                        'use_cn'=>$nl_flags->{'use_cn'}, 'use_fates'=>$nl_flags->{'use_fates'} );
@@ -3588,7 +3588,7 @@ sub validate_options {
            # create the @expect array by listing the files in $use_case_dir
            # and strip off the ".xml" part of the filename
            @expect = ();
-           my @files = glob("$opts->{'use_case_dir'}/*.xml");
+           my @files = bsd_glob("$opts->{'use_case_dir'}/*.xml");
            foreach my $file (@files) {
                $file =~ m{.*/(.*)\.xml};
                &check_use_case_name( $1 );
@@ -3602,7 +3602,7 @@ sub validate_options {
         } else {
            print "Use cases are:...\n\n";
            my @ucases;
-           foreach my $file( sort( glob($opts->{'use_case_dir'}."/*.xml") ) ) {
+           foreach my $file( sort( bsd_glob($opts->{'use_case_dir'}."/*.xml") ) ) {
               my $use_case;
               if ( $file =~ /\/([^\/]+)\.xml$/ ) {
                  &check_use_case_name( $1 );

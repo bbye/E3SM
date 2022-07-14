@@ -7,7 +7,7 @@ module EcosystemDynMod
   use dynSubgridControlMod, only : get_do_harvest
   use shr_kind_mod        , only : r8 => shr_kind_r8
   use shr_sys_mod         , only : shr_sys_flush
-  use elm_varctl          , only : use_c13, use_c14, use_fates, use_dynroot
+  use elm_varctl          , only : use_c13, use_c14, use_fates, use_dynroot, use_fan
   use decompMod           , only : bounds_type
   use perf_mod            , only : t_startf, t_stopf
   use spmdMod             , only : masterproc
@@ -17,7 +17,6 @@ module EcosystemDynMod
   use CanopyStateType     , only : canopystate_type
   use SoilStateType       , only : soilstate_type
   use atm2lndType         , only : atm2lnd_type
-  use SoilStateType       , only : soilstate_type
   use CanopyStateType     , only : canopystate_type
   use PhotosynthesisType  , only : photosyns_type
   use CH4Mod              , only : ch4_type
@@ -83,6 +82,7 @@ contains
     use PhenologyMod , only : PhenologyInit
     use FireMod      , only : FireInit
     use C14DecayMod  , only : C14_init_BombSpike
+    use FanUpdateMod , only : fanInit
     !
     ! !ARGUMENTS:
     implicit none
@@ -105,6 +105,9 @@ contains
         call InitPhenoFluxLimiter()
     endif
 
+    if(use_fan)then
+      call fanInit()
+    end if
   end subroutine EcosystemDynInit
 
 
@@ -272,9 +275,11 @@ contains
   subroutine EcosystemDynNoLeaching1(bounds,                          &
        num_soilc, filter_soilc,                                         &
        num_soilp, filter_soilp,                                         &
+       num_pcropp, filter_pcropp,                                       &
        cnstate_vars,  atm2lnd_vars,           &
        canopystate_vars, soilstate_vars, crop_vars,   &
-       ch4_vars, photosyns_vars     )
+       ch4_vars, photosyns_vars,       &
+       frictionvel_vars     )
     !-------------------------------------------------------------------
     ! bgc interface
     ! Phase-1 of EcosystemDynNoLeaching
@@ -289,7 +294,7 @@ contains
     !
     ! !USES:
     use NitrogenDynamicsMod         , only: NitrogenDeposition,NitrogenFixation, NitrogenFert, CNSoyfix
-    use PhosphorusDynamicsMod       , only: PhosphorusDeposition
+    use PhosphorusDynamicsMod       , only: PhosphorusDeposition, PhosphorusFert
     use MaintenanceRespMod          , only: MaintenanceResp
     use DecompCascadeBGCMod   , only: decomp_rate_constants_bgc
     use DecompCascadeCNMod    , only: decomp_rate_constants_cn
@@ -309,6 +314,8 @@ contains
     integer                  , intent(in)    :: filter_soilc(:)   ! filter for soil columns
     integer                  , intent(in)    :: num_soilp         ! number of soil patches in filter
     integer                  , intent(in)    :: filter_soilp(:)   ! filter for soil patches
+    integer                  , intent(in)    :: num_pcropp        ! number of prog. crop patches in filter
+    integer                  , intent(in)    :: filter_pcropp(:)  ! filter for prognostic crop patches
     type(cnstate_type)       , intent(inout) :: cnstate_vars
     type(atm2lnd_type)       , intent(in)    :: atm2lnd_vars
     type(canopystate_type)   , intent(in)    :: canopystate_vars
@@ -316,6 +323,7 @@ contains
     type(crop_type)          , intent(in)    :: crop_vars
     type(ch4_type)           , intent(in)    :: ch4_vars
     type(photosyns_type)     , intent(in)    :: photosyns_vars
+    type(frictionvel_type)   , intent(in)    :: frictionvel_vars
 
     character(len=64) :: event
     real(r8) :: dt, dayspyr
@@ -362,7 +370,8 @@ contains
     event = 'CNDeposition'
     call t_start_lnd(event)
     call NitrogenDeposition(bounds, &
-         atm2lnd_vars, dt )
+       atm2lnd_vars, frictionvel_vars,  &
+       soilstate_vars, filter_soilc, num_soilc, dt)
     call t_stop_lnd(event)
 
     event = 'CNFixation'
@@ -382,8 +391,8 @@ contains
        event = 'MaintenanceResp'
        call t_start_lnd(event)
        if (crop_prog) then
-          call NitrogenFert(bounds, num_soilc,filter_soilc )
-
+          call NitrogenFert(bounds, num_soilc, filter_soilc, num_pcropp, filter_pcropp )
+          call PhosphorusFert(bounds, num_soilc, filter_soilc )
           call CNSoyfix(bounds, num_soilc, filter_soilc, num_soilp, filter_soilp, &
                          crop_vars, cnstate_vars )
        end if

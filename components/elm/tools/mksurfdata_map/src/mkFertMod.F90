@@ -65,7 +65,7 @@ subroutine mkfert(ldomain, mapfname, datfname, ndiag, nfert_o, pfert_o)
   type(gridmap_type)    :: tgridmap
   type(domain_type)     :: tdomain          ! local domain
   integer  :: l                             ! index
-  integer  :: numpft_i                      ! number of plant types on input
+  integer  :: num_cft_i                      ! number of plant types on input
   real(r8), allocatable :: mfert_i(:,:)     ! data on input grid
   integer  :: ncidi, dimid, varid           ! input netCDF id's
   integer  :: ier                           ! error status
@@ -94,16 +94,16 @@ subroutine mkfert(ldomain, mapfname, datfname, ndiag, nfert_o, pfert_o)
 
   write (6,*) 'Open fert file: ', trim(datfname)
   call check_ret(nf_open(datfname, 0, ncidi), subname)
-  call check_ret(nf_inq_dimid(ncidi, 'pft', dimid), subname)
-  call check_ret(nf_inq_dimlen(ncidi, dimid, numpft_i), subname)
+  call check_ret(nf_inq_dimid(ncidi, 'cft', dimid), subname)
+  call check_ret(nf_inq_dimlen(ncidi, dimid, num_cft_i), subname)
 
-  if (numpft_i /= numpft+1) then
-     write(6,*)'MKFERT: parameter numpft+1= ',numpft+1, &
-          'does not equal input dataset numpft= ',numpft_i
+  if (num_cft_i /= num_cft) then
+     write(6,*)'MKFERT: parameter numcft= ',num_cft, &
+          'does not equal input dataset numcft= ',num_cft_i
      stop
   endif
 
-  allocate(mfert_i(tdomain%ns,0:numpft), stat=ier )
+  allocate(mfert_i(tdomain%ns,1:num_cft), stat=ier )
   if (ier /= 0) then
      write(6,*)'mkfert allocation error'; call abort()
   end if
@@ -117,8 +117,8 @@ subroutine mkfert(ldomain, mapfname, datfname, ndiag, nfert_o, pfert_o)
   
      ! Loop over pft types to do mapping
 
-     do l = 1,numpft
-        call gridmap_areaave(tgridmap, mfert_i(:,l) , nfert_o(:,l+1) , nodata=0._r8)
+     do l = 1,num_cft
+        call gridmap_areaave(tgridmap, mfert_i(:,l) , nfert_o(:,l) , nodata=0._r8)
         if (min_bad(nfert_o(:,l), 0.0_r8, 'NFERT')) then
             stop
         end if
@@ -134,8 +134,8 @@ subroutine mkfert(ldomain, mapfname, datfname, ndiag, nfert_o, pfert_o)
 
      ! Loop over pft types to do mapping
 
-     do l = 1,numpft
-        call gridmap_areaave(tgridmap, mfert_i(:,l) , pfert_o(:,l+1) , nodata=0._r8)
+     do l = 1,num_cft
+        call gridmap_areaave(tgridmap, mfert_i(:,l) , pfert_o(:,l) , nodata=0._r8)
         if (min_bad(pfert_o(:,l), 0.0_r8, 'PFERT')) then
            stop
         end if

@@ -698,13 +698,13 @@ Toggle to turn on the dynamic root model.
 <!-- ========================================================================================  -->
 
 <entry id="use_fan" type="logical" category="physics"
-       group="clm_inparm" valid_values="" value=".false.">
+       group="elm_inparm" valid_values="" value=".false.">
 Toggle to turn on the Flow of Agricultural Nitrogen (FAN) model.
 Default configuration has no connection to soil or atmosphere.
 </entry>
 
 <entry id="fan_mode" type="char*32" category="physics"
-       group="clm_inparm" valid_values="fan_offline,fan_soil,fan_atm,fan_full">
+       group="elm_inparm" valid_values="fan_offline,fan_soil,fan_atm,fan_full">
 Optional flag to turn on the fan mode coupling atm/soil.
     fan_offline = use only fan for calculating emissions (no coupling)
     fan_soil    = fan coupled to soil bgc

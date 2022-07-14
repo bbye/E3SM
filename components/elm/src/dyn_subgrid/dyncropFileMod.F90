@@ -116,7 +116,7 @@ contains
   end subroutine dyncrop_init
 
   !-----------------------------------------------------------------------
-  subroutine dyncrop_interp(bounds,crop_inst)
+  subroutine dyncrop_interp(bounds,crop_vars)
     
     ! !DESCRIPTION:
     ! Get crop cover for model time, when needed.
@@ -132,14 +132,14 @@ contains
     use CropType          , only : crop_type
     use landunit_varcon   , only : istcrop
     use elm_varpar        , only : cft_lb, cft_ub
-    use surfrdUtilsMod    , only : collapse_crop_types
+    use surfrdUtilsMod    , only : collapse_crop_types, collapse_crop_var
     use subgridWeightsMod , only : set_landunit_weight
     use subgridWeightsMod , only : get_landunit_weight
     use GridcellType      , only : grc_pp
     
     ! !ARGUMENTS:
     type(bounds_type), intent(in) :: bounds  ! proc-level bounds
-    type(crop_type), intent(in) :: crop_inst  ! crop instance for updating annual fertilizer
+    type(crop_type), intent(in) :: crop_vars  ! crop instance for updating annual fertilizer
     
     ! !LOCAL VARIABLES:
     integer               :: m,p,c,l,g,t,t2,ti,topi      ! indices  
@@ -180,6 +180,8 @@ contains
     call pfertcft%get_current_data(pfertcft_cur)
 
     call collapse_crop_types(wtcft_cur, nfertcft_cur, pfertcft_cur, bounds%begg, bounds%endg, verbose = .false.)
+    call collapse_crop_var(nfertcft_cur(bounds%begg:bounds%endg,:,:), bounds%begg, bounds%endg)
+    call collapse_crop_var(pfertcft_cur(bounds%begg:bounds%endg,:,:), bounds%begg, bounds%endg)
 
     allocate(col_set(bounds%begc:bounds%endc))
     col_set(:) = .false.
@@ -204,8 +206,8 @@ contains
           end if
           col_pp%wtlunit(c) = wtcft_cur(g,ti,m)
           if (use_crop) then
-            crop_inst%fertnitro_patch(p) = nfertcft_cur(g,ti,m)
-            crop_inst%fertphosp_patch(p) = pfertcft_cur(g,ti,m)
+            crop_vars%fertnitro_patch(p) = nfertcft_cur(g,ti,m)
+            crop_vars%fertphosp_patch(p) = pfertcft_cur(g,ti,m)
           end if
           col_set(c) = .true.
        end if

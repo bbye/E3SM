@@ -4,7 +4,7 @@ module FanMod
   ! !DESCRIPTION:
   !
   ! This module implements the physical parameterizations of the FANv2 (Flow of
-  ! Agricultureal Nitrogen version 2) process model, and includes the numerical routines
+  ! Agricultural Nitrogen version 2) process model, and includes the numerical routines
   ! for handling age-seggregated N pools. The model evaluates nitrogen losses due to
   ! volatilization and leaching from livestock manure and mineral fertilizers.
   ! 
@@ -79,7 +79,7 @@ module FanMod
 
    logical, parameter, public :: debug_fan = .true.
 
-  real(r8), parameter :: abstol = 1e-15_r8 ! tolerance for trapping roundoff errors
+  real(r8), parameter :: abstol = 1e-13_r8 ! tolerance for trapping roundoff errors
  
 contains
 
@@ -1193,6 +1193,10 @@ contains
     if (debug_fan) then
        if (abs(balance - (ndep-sum(fluxes))*dt + residual) > abstol) then
           status = err_balance_nitr
+          write(*,*) 'balance        = ', balance
+          write(*,*) 'ndep-fluxes    = ', (ndep-sum(fluxes))*dt
+          write(*,*) 'residual       = ', residual
+          write(*,*) 'diff           = ', abs(balance - (ndep-sum(fluxes))*dt + residual)
           return
        end if
     end if
